@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Room, User, WishListItem } from '../types';
 import { updateRoomData, updateUserInRoom } from '../services/storage';
-import { ThumbsUp, Plus, ShoppingCart, Heart, Coffee, Sun, Save, Utensils, CheckCircle, Circle } from 'lucide-react';
-import { MEAL_TYPES } from '../constants';
+import { ThumbsUp, Plus, ShoppingCart, Heart, Coffee, Sun, Save, Utensils, CheckCircle, Circle, Zap, Activity } from 'lucide-react';
+import { MEAL_TYPES, DEFAULT_RECIPES } from '../constants';
+import { calculateMatchScore } from '../services/intelligence';
+import { GLOBAL_RECIPE_DATABASE } from '../services/recipe_database';
 
 interface FamilyDashboardProps {
   room: Room;
@@ -91,6 +93,47 @@ export const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ room, user, on
       onRefresh();
   };
 
+  // Data Sync & Cleanup
+  React.useEffect(() => {
+    let needsUpdate = false;
+    const updatedRecipes = (room.recipes || []).map(r => {
+      let updated = { ...r };
+      const def = DEFAULT_RECIPES.find(dr => dr.id === r.id);
+      
+      if (def && (!r.ingredients || r.ingredients.length === 0)) {
+        updated = { ...updated, ingredients: def.ingredients, nutritionalInfo: def.nutritionalInfo };
+        needsUpdate = true;
+      }
+      
+      if ((updated.type as any) === 'recipe') {
+        const match = GLOBAL_RECIPE_DATABASE.find(dbR => dbR.name === updated.name);
+        updated.type = match ? match.type : 'lunch';
+        needsUpdate = true;
+      }
+      
+      return updated;
+    });
+
+    const fixedDailyPlans = { ...room.dailyPlans };
+    if (fixedDailyPlans[today]) {
+        const plan = fixedDailyPlans[today];
+        if (plan.proposedRecipes.some(r => (r.type as any) === 'recipe')) {
+            needsUpdate = true;
+            plan.proposedRecipes = plan.proposedRecipes.map(r => {
+                if ((r.type as any) === 'recipe') {
+                    const match = GLOBAL_RECIPE_DATABASE.find(dbR => dbR.name === r.name);
+                    return { ...r, type: match ? match.type : 'lunch' };
+                }
+                return r;
+            });
+        }
+    }
+
+    if (needsUpdate) {
+      updateRoomData(room.id, { recipes: updatedRecipes, dailyPlans: fixedDailyPlans }).then(() => onRefresh());
+    }
+  }, [room.recipes, room.dailyPlans, room.id, today, onRefresh]);
+
   return (
     <div className="pb-24 animate-fadeIn">
       {/* CONTENT */}
@@ -106,38 +149,59 @@ export const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ room, user, on
               <p className="text-2xl font-bold">Mom hasn't planned the menu yet.<br/><span className="text-base font-normal opacity-70">Check back later!</span></p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2">
-              {todaysPlan.proposedRecipes.map(recipe => {
-                const voteCount = todaysPlan.votes.filter(v => v.recipeId === recipe.id).length;
-                const hasVoted = todaysPlan.votes.some(v => v.recipeId === recipe.id && v.userId === user.id);
+            <div className="space-y-8">
+              {MEAL_TYPES.map(type => {
+                const recipesForType = todaysPlan.proposedRecipes.filter(r => r.type === type);
+                if (recipesForType.length === 0) return null;
 
                 return (
-                  <div key={recipe.id} className={`p-6 rounded-3xl border transition-all duration-300 ${hasVoted ? 'border-orange-500 bg-orange-50/80 dark:bg-orange-900/30 backdrop-blur-md shadow-lg ring-1 ring-orange-500' : 'border-white/20 dark:border-stone-700 bg-white/70 dark:bg-stone-900/60 backdrop-blur-md hover:border-orange-300 dark:hover:border-orange-700 hover:shadow-xl hover:-translate-y-1'}`}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <span className="text-xs font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/40 px-3 py-1 rounded-full mb-3 inline-block shadow-sm">
-                          {recipe.type}
-                        </span>
-                        <h3 className="text-2xl font-bold text-stone-900 dark:text-white mb-1">{recipe.name}</h3>
-                        <p className="text-sm text-stone-500 dark:text-stone-400 font-medium">{recipe.description}</p>
-                      </div>
-                      {recipe.isSpecial && <Heart className="text-pink-500 fill-current drop-shadow-md" size={28} />}
-                    </div>
-                    
-                    <div className="mt-6 flex items-center justify-between pt-4 border-t border-stone-100 dark:border-stone-800">
-                      <span className="text-sm font-semibold text-stone-600 dark:text-stone-300 bg-stone-100/50 dark:bg-stone-800/50 px-3 py-1 rounded-full">{voteCount} votes</span>
-                      <button
-                        onClick={() => handleVote(recipe.id)}
-                        disabled={hasVoted}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-bold transition shadow-md ${
-                          hasVoted 
-                            ? 'bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 cursor-default' 
-                            : 'bg-stone-900 dark:bg-stone-700 text-white hover:bg-stone-800 dark:hover:bg-stone-600 hover:scale-105 transform'
-                        }`}
-                      >
-                        <ThumbsUp size={18} />
-                        {hasVoted ? 'Voted' : 'I want this!'}
-                      </button>
+                  <div key={type} className="animate-fadeIn">
+                    <h3 className="text-xs font-bold uppercase text-stone-500 dark:text-stone-400 mb-4 tracking-widest pl-2 border-l-4 border-orange-500 flex items-center gap-2">
+                       {type === 'breakfast' && <Coffee size={14} />}
+                       {type === 'lunch' && <Sun size={14} />}
+                       {type === 'dinner' && <Utensils size={14} />}
+                       {type}
+                    </h3>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {recipesForType.map(recipe => {
+                        const voteCount = todaysPlan.votes.filter(v => v.recipeId === recipe.id).length;
+                        const hasVoted = todaysPlan.votes.some(v => v.recipeId === recipe.id && v.userId === user.id);
+
+                        return (
+                          <div key={recipe.id} className={`p-6 rounded-3xl border transition-all duration-300 ${hasVoted ? 'border-orange-500 bg-orange-50/80 dark:bg-orange-900/30 backdrop-blur-md shadow-lg ring-1 ring-orange-500' : 'border-white/20 dark:border-stone-700 bg-white/70 dark:bg-stone-900/60 backdrop-blur-md hover:border-orange-300 dark:hover:border-orange-700 hover:shadow-xl hover:-translate-y-1'}`}>
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <span className="text-xs font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/40 px-3 py-1 rounded-full mb-3 inline-block shadow-sm">
+                                  {recipe.type}
+                                </span>
+                                <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-1">{recipe.name}</h3>
+                                <p className="text-sm text-stone-500 dark:text-stone-400 font-medium">{recipe.description}</p>
+                              </div>
+                              {recipe.isSpecial && <Heart className="text-pink-500 fill-current drop-shadow-md" size={28} />}
+                            </div>
+                            
+                            <div className="flex gap-4 mb-6">
+                              <div className="flex-1 bg-green-50 dark:bg-green-900/20 p-3 rounded-2xl border border-green-100 dark:border-green-900/30 flex items-center gap-2">
+                                <Activity size={18} className="text-green-600" />
+                                <span className="text-lg font-bold text-green-700 dark:text-green-300">{recipe.nutritionalInfo?.calories || 0} <span className="text-xs font-normal opacity-70">kcal</span></span>
+                              </div>
+                              <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
+                                <Zap size={18} className="text-blue-600" />
+                                <span className="text-lg font-bold text-blue-700 dark:text-green-300">{calculateMatchScore(recipe, room.inventory)}% <span className="text-xs font-normal opacity-70">match</span></span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleVote(recipe.id)}
+                              className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all duration-300 ${hasVoted ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/30 scale-[1.02]' : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-orange-500 hover:text-white dark:hover:bg-orange-500 shadow-inner'}`}
+                            >
+                              <ThumbsUp size={22} className={hasVoted ? 'animate-bounce' : ''} />
+                              {hasVoted ? 'Liked!' : 'Vote for this!'}
+                              <span className={`ml-2 px-3 py-1 rounded-full text-xs ${hasVoted ? 'bg-orange-500/50' : 'bg-stone-200 dark:bg-stone-700'}`}>{voteCount} votes</span>
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -151,27 +215,29 @@ export const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ room, user, on
         <div className="space-y-8">
            <div className="bg-white/70 dark:bg-stone-900/60 backdrop-blur-xl p-8 rounded-3xl shadow-lg border border-white/20 dark:border-stone-700">
              <h3 className="text-2xl font-bold mb-6 dark:text-white flex items-center gap-2"><Heart className="text-pink-500" /> Request a Special Dish</h3>
-             <div className="flex flex-col md:flex-row gap-4">
+             <div className="flex flex-col gap-3">
                <input 
                  type="text" 
                  placeholder="E.g., Lasagna, Chocolate Cake..." 
-                 className="flex-1 border border-stone-200 dark:border-stone-700 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-orange-500 outline-none bg-white/50 dark:bg-stone-800/50 dark:text-white transition shadow-inner"
+                 className="flex-1 border border-stone-200 dark:border-stone-700 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-orange-500 outline-none bg-white/50 dark:bg-stone-800/50 dark:text-white transition shadow-inner"
                  value={newWish}
                  onChange={(e) => setNewWish(e.target.value)}
                />
-               <select 
-                className="border border-stone-200 dark:border-stone-700 rounded-2xl px-6 py-4 bg-white/50 dark:bg-stone-800/50 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer transition shadow-sm"
-                value={wishMealType}
-                onChange={(e) => setWishMealType(e.target.value as any)}
-               >
-                 {MEAL_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-               </select>
-               <button 
-                onClick={handleAddWish}
-                className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-orange-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-orange-500/30 hover:scale-105"
-               >
-                 <Plus size={20} /> Add Wish
-               </button>
+               <div className="flex gap-3">
+                 <select 
+                   className="flex-1 border border-stone-200 dark:border-stone-700 rounded-2xl px-4 py-3 bg-white/50 dark:bg-stone-800/50 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none cursor-pointer transition shadow-sm"
+                   value={wishMealType}
+                   onChange={(e) => setWishMealType(e.target.value as any)}
+                 >
+                   {MEAL_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                 </select>
+                 <button 
+                  onClick={handleAddWish}
+                  className="bg-orange-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-orange-700 transition flex items-center justify-center gap-2 shadow-lg hover:shadow-orange-500/30"
+                 >
+                   <Plus size={20} /> Add
+                 </button>
+               </div>
              </div>
            </div>
 
@@ -207,7 +273,7 @@ export const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ room, user, on
                       </div>
                   </div>
                   
-                  <div className="grid md:grid-cols-3 gap-6 mt-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mt-6">
                       <div className="space-y-3">
                           <label className="text-xs font-bold uppercase text-stone-500 dark:text-stone-400 tracking-wider pl-2">Breakfast (Min 6)</label>
                           <textarea 
@@ -289,20 +355,20 @@ export const FamilyDashboard: React.FC<FamilyDashboardProps> = ({ room, user, on
       )}
 
       {/* FLOATING NAVBAR */}
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white/70 dark:bg-stone-900/70 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-stone-700 rounded-full px-2 py-2 flex items-center gap-2 z-50">
+      <div className="fixed bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 bg-white/70 dark:bg-stone-900/70 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-stone-700 rounded-full px-1 sm:px-2 py-1 sm:py-2 flex items-center gap-1 sm:gap-2 z-50">
         {[
             { id: 'today', icon: Sun, label: 'Today' },
-            { id: 'menu', icon: Utensils, label: 'My Menu' },
             { id: 'wishes', icon: Heart, label: 'Wishes' },
             { id: 'shopping', icon: ShoppingCart, label: 'Shop' },
+            { id: 'menu', icon: Utensils, label: 'Menu' },
         ].map((tab) => (
             <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex flex-col items-center justify-center w-16 h-16 rounded-full transition-all duration-300 ${activeTab === tab.id ? 'bg-orange-600 text-white shadow-lg scale-110 -translate-y-2' : 'text-stone-500 dark:text-stone-400 hover:bg-white/50 dark:hover:bg-stone-800/50 hover:text-stone-700 dark:hover:text-stone-200'}`}
+                className={`flex flex-col items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full transition-all duration-300 ${activeTab === tab.id ? 'bg-orange-600 text-white shadow-lg scale-110 -translate-y-1 sm:-translate-y-2' : 'text-stone-500 dark:text-stone-400 hover:bg-white/50 dark:hover:bg-stone-800/50 hover:text-stone-700 dark:hover:text-stone-200'}`}
             >
-                <tab.icon size={24} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-                {activeTab === tab.id && <span className="text-[10px] font-bold mt-0.5 animate-fadeIn">{tab.label}</span>}
+                <tab.icon size={18} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+                {activeTab === tab.id && <span className="text-[8px] sm:text-[9px] font-bold mt-0.5 animate-fadeIn">{tab.label}</span>}
             </button>
         ))}
       </div>

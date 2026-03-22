@@ -80,3 +80,16 @@ export const removeUserFromRoom = async (roomId: string, userId: string): Promis
     method: 'DELETE'
   });
 };
+
+// ─── LOG MISSING RECIPE ──────────────────────────────────────
+export const logMissingRecipe = async (dishName: string): Promise<void> => {
+  try {
+    await fetch(`${API}/missing-recipes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dishName })
+    });
+  } catch (error) {
+    console.error('Failed to log missing recipe:', error);
+  }
+};

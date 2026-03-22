@@ -66,9 +66,9 @@ export const RoomLobby: React.FC<RoomLobbyProps> = ({ room, onUserLogin, onExitR
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-8 bg-stone-100 dark:bg-stone-900/50 p-4 rounded-xl border border-stone-200 dark:border-stone-800">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8 bg-stone-100 dark:bg-stone-900/50 p-4 rounded-xl border border-stone-200 dark:border-stone-800">
                 <div>
-                    <h2 className="text-3xl font-bold text-stone-900 dark:text-white">Who is cooking?</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 dark:text-white">Who is cooking?</h2>
                     <p className="text-stone-500 dark:text-stone-400">Room: <span className="font-semibold text-orange-600 dark:text-orange-400">{room.name}</span></p>
                 </div>
                 <button 
@@ -79,11 +79,11 @@ export const RoomLobby: React.FC<RoomLobbyProps> = ({ room, onUserLogin, onExitR
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 {/* Left: User Selection */}
                 <div className="space-y-4">
                     <h3 className="font-bold text-lg text-stone-700 dark:text-stone-300">Select Profile</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-3 sm:gap-4">
                         {room.users.map(user => (
                             <button
                                 key={user.id}
@@ -113,7 +113,7 @@ export const RoomLobby: React.FC<RoomLobbyProps> = ({ room, onUserLogin, onExitR
                 </div>
 
                 {/* Right: Login/Create Form */}
-                <div className="bg-white dark:bg-stone-900 p-8 rounded-2xl shadow-lg border border-stone-100 dark:border-stone-800 flex flex-col justify-center min-h-[300px] transition-colors duration-300">
+                <div className="bg-white dark:bg-stone-900 p-5 sm:p-8 rounded-2xl shadow-lg border border-stone-100 dark:border-stone-800 flex flex-col justify-center min-h-[250px] sm:min-h-[300px] transition-colors duration-300">
                     {selectedUser ? (
                         <form onSubmit={handleLoginSubmit} className="space-y-6 animate-fadeIn">
                             <div className="text-center">

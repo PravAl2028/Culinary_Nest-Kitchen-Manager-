@@ -22,6 +22,22 @@ const RoomSchema = new mongoose.Schema({
 
 const Room = mongoose.model('Room', RoomSchema);
 
+const GlobalRequestSchema = new mongoose.Schema({
+  dishName:   { type: String, required: true },
+  roomId:     { type: String },
+  requestedAt: { type: Date, default: Date.now }
+});
+
+const GlobalRequest = mongoose.model('GlobalRequest', GlobalRequestSchema);
+
+const GeminiReferralSchema = new mongoose.Schema({
+  dishName:   { type: String, required: true },
+  roomId:     { type: String },
+  referredAt: { type: Date, default: Date.now }
+});
+
+const GeminiReferral = mongoose.model('GeminiReferral', GeminiReferralSchema);
+
 // ─── ROUTES ──────────────────────────────────────────────────
 
 // GET /api/rooms/:id — get room by mongo id
@@ -103,6 +119,32 @@ app.delete('/api/rooms/:id/users/:userId', async (req, res) => {
     room.markModified('users');
     await room.save();
     res.json(roomToClient(room));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/global/recipe-requests — log a missing recipe for the website owner
+app.post('/api/global/recipe-requests', async (req, res) => {
+  try {
+    const { dishName, roomId } = req.body;
+    if (!dishName) return res.status(400).json({ error: 'Dish name is required' });
+    
+    const request = await GlobalRequest.create({ dishName, roomId });
+    res.status(201).json(request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/global/gemini-referrals — log a redirection to external Gemini
+app.post('/api/global/gemini-referrals', async (req, res) => {
+  try {
+    const { dishName, roomId } = req.body;
+    if (!dishName) return res.status(400).json({ error: 'Dish name is required' });
+    
+    const referral = await GeminiReferral.create({ dishName, roomId });
+    res.status(201).json(referral);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

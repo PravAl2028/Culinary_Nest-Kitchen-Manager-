@@ -41,43 +41,43 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, roomName,
       </div>
 
       <header className="sticky top-0 z-50 bg-white/70 dark:bg-stone-900/70 backdrop-blur-xl border-b border-white/20 dark:border-stone-800/50 shadow-sm transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 {onBack && (
-                    <button onClick={onBack} className="p-2 hover:bg-stone-100/50 dark:hover:bg-stone-800/50 rounded-full transition text-stone-600 dark:text-stone-300">
-                        <ArrowLeft size={24} />
+                    <button onClick={onBack} className="p-2 hover:bg-stone-100/50 dark:hover:bg-stone-800/50 rounded-full transition text-stone-600 dark:text-stone-300 flex-shrink-0">
+                        <ArrowLeft size={22} />
                     </button>
                 )}
-                <div className="flex flex-col">
-                    <h1 className="text-xl font-bold flex items-center gap-2 text-stone-900 dark:text-white tracking-tight">
-                        <Home className="text-orange-500" size={24} />
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-600 to-rose-600 dark:from-orange-400 dark:to-rose-400">
-                            {roomName ? `${roomName}'s Kitchen` : 'CulinaryNest'}
+                <div className="flex flex-col min-w-0">
+                    <h1 className="text-base sm:text-xl font-bold flex items-center gap-1.5 sm:gap-2 text-stone-900 dark:text-white tracking-tight">
+                        <Home className="text-orange-500 flex-shrink-0" size={20} />
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-600 to-rose-600 dark:from-orange-400 dark:to-rose-400 truncate">
+                            {roomName ? <><span className="hidden sm:inline">{roomName}'s Kitchen</span><span className="sm:hidden">{roomName}</span></> : 'CulinaryNest'}
                         </span>
                     </h1>
                     {currentUser && (
-                    <span className="text-xs text-stone-500 dark:text-stone-400 font-medium">
+                    <span className="text-xs text-stone-500 dark:text-stone-400 font-medium truncate">
                         {currentUser.name} • <span className="uppercase tracking-wide text-[10px]">{currentUser.role}</span>
                     </span>
                     )}
                 </div>
             </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button 
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                className="p-2.5 bg-stone-100/50 dark:bg-stone-800/50 hover:bg-orange-100 dark:hover:bg-stone-700 rounded-full transition text-stone-600 dark:text-stone-300 backdrop-blur-sm"
+                className="p-2 sm:p-2.5 bg-stone-100/50 dark:bg-stone-800/50 hover:bg-orange-100 dark:hover:bg-stone-700 rounded-full transition text-stone-600 dark:text-stone-300 backdrop-blur-sm"
             >
-                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
             {currentUser && (
                 <button
                 onClick={onLogout}
-                className="flex items-center gap-2 bg-gradient-to-r from-stone-800 to-stone-900 dark:from-stone-700 dark:to-stone-800 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg transition transform hover:-translate-y-0.5"
+                className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-stone-800 to-stone-900 dark:from-stone-700 dark:to-stone-800 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-sm font-medium hover:shadow-lg transition"
                 title="Switch User"
                 >
-                <LogOut size={16} />
+                <LogOut size={15} />
                 <span className="hidden sm:inline">Log Out</span>
                 </button>
             )}
@@ -85,7 +85,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, roomName,
         </div>
       </header>
       
-      <main className="flex-grow max-w-7xl mx-auto w-full px-4 py-8 mb-24 text-stone-900 dark:text-stone-100 relative z-10"> 
+      <main className="flex-grow max-w-7xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-8 mb-28 text-stone-900 dark:text-stone-100 relative z-10"> 
         {children}
       </main>
 

@@ -27,8 +27,17 @@ export interface Recipe {
   name: string;
   type: MealType;
   description?: string;
-  isSpecial: boolean; // True if it's a "Special Dish"
-  instructions?: string; // AI generated or manual
+  isSpecial: boolean;
+  ingredients: string[]; // List of required items
+    nutritionalInfo?: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      servingSize?: string; // E.g., "1 bowl", "2 slices"
+      ingredientCalories?: Record<string, number>;
+    };
+  instructions?: string[];
 }
 
 export interface ShoppingItem {
